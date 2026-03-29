@@ -1,0 +1,101 @@
+# Docker
+# Build a Docker image
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger:
+- main
+
+resources:
+- repo: self
+
+variables:
+  tag: '$(Build.BuildId)'
+  dockerRepository: 'mabahloul/dockerhubdemo'
+  containerAppName: 'aspnetdemodocker'
+  resourceGroup: 'nourilouka.com'
+
+stages:
+- stage: Build
+  displayName: Build image
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      name: Default
+      demands:
+        - agent.os -equals Linux
+        - Agent.Name -equals 'myagentazure'
+    steps:
+    - task: Docker@2
+      displayName: Build Docker image
+      inputs:
+        command: build
+        repository: '$(dockerRepository)'
+        dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
+        tags: |
+          $(tag)
+        containerRegistry: 'dockerconnection'
+
+    - script: |
+        docker save $(dockerRepository):$(tag) -o $(Pipeline.Workspace)/image.tar
+      displayName: Save Docker image artifact
+
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(Pipeline.Workspace)/image.tar'
+        artifact: 'dockerImage'
+
+- stage: Push
+  displayName: Push image
+  dependsOn: Build
+  jobs:
+  - job: Push
+    displayName: Push
+    pool:
+      name: Default
+      demands:
+        - agent.os -equals Linux
+        - Agent.Name -equals 'myagentazure'
+    steps:
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        artifact: 'dockerImage'
+        path: '$(Pipeline.Workspace)'
+
+    - script: |
+        docker load -i $(Pipeline.Workspace)/image.tar
+      displayName: Load Docker image artifact
+
+    - task: Docker@2
+      displayName: Push Docker image to Docker Hub
+      inputs:
+        command: push
+        repository: '$(dockerRepository)'
+        tags: |
+          $(tag)
+        containerRegistry: 'dockerconnection'
+
+- stage: Deploy
+  displayName: Deploy to Azure Container Apps
+  dependsOn: Push
+  jobs:
+  - job: Deploy
+    displayName: Deploy
+    pool:
+      name: Default
+      demands:
+        - agent.os -equals Linux
+        - Agent.Name -equals 'ubuntu'
+    steps:
+    - task: AzureCLI@2
+      displayName: Deploy image to Azure Container Apps
+      inputs:
+        azureSubscription: 'azureconnection'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          az account show
+          az containerapp update \
+            --name $(containerAppName) \
+            --resource-group $(resourceGroup) \
+            --image $(dockerRepository):$(tag)
