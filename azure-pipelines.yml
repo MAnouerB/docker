@@ -18,7 +18,9 @@ stages:
   - job: Build
     displayName: Build
     pool:
-      vmImage: ubuntu-latest
+      name: Default
+      deamands:
+        - agent.os -equals Linux
     steps:
     - task: Docker@2
       displayName: Build an image
