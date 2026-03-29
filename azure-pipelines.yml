@@ -10,6 +10,7 @@ resources:
 
 variables:
   tag: '$(Build.BuildId)'
+  dockerRepository: 'mabahloul/dockerhubdemo'
 
 stages:
 - stage: Build
@@ -19,13 +20,45 @@ stages:
     displayName: Build
     pool:
       name: Default
-      deamands:
+      demands:
         - agent.os -equals Linux
     steps:
     - task: Docker@2
-      displayName: Build an image
+      displayName: Build Docker image
       inputs:
         command: build
+        repository: '$(dockerRepository)'
         dockerfile: '$(Build.SourcesDirectory)/Dockerfile'
         tags: |
           $(tag)
+    - script: |
+        docker save $(dockerRepository):$(tag) -o $(Pipeline.Workspace)/image.tar
+      displayName: Save Docker image artifact
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(Pipeline.Workspace)/image.tar'
+        artifact: dockerImage
+
+  - job: Push
+    displayName: Push image
+    dependsOn: Build
+    pool:
+      name: Default
+      demands:
+        - agent.os -equals Linux
+    steps:
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        artifact: dockerImage
+        path: '$(Pipeline.Workspace)'
+    - script: |
+        docker load -i $(Pipeline.Workspace)/image.tar
+      displayName: Load Docker image artifact
+    - task: Docker@2
+      displayName: Push Docker image to Docker Hub
+      inputs:
+        command: push
+        repository: '$(dockerRepository)'
+        tags: |
+          $(tag)
+        containerRegistry: 'DockerHubServiceConnection'
