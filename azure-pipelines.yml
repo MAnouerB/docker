@@ -80,7 +80,9 @@ stages:
   - job: Deploy
     displayName: Deploy
     pool:
-      vmImage: ubuntu-latest
+      name: Default
+      demands:
+        - agent.os -equals Linux
     steps:
     - task: AzureCLI@2
       displayName: Deploy image to Azure Container Apps
