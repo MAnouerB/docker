@@ -23,7 +23,7 @@ stages:
     pool:
       name: Default
       demands:
-        - agent.os -equals Linux
+        - Agent.Name -equals 'vm-docker-asp-demo-001'
     steps:
     - task: Docker@2
       displayName: Build Docker image
@@ -53,7 +53,7 @@ stages:
     pool:
       name: Default
       demands:
-        - agent.os -equals Linux
+        - Agent.Name -equals 'vm-docker-asp-demo-001'
     steps:
     - task: DownloadPipelineArtifact@2
       inputs:
@@ -82,7 +82,7 @@ stages:
     pool:
       name: Default
       demands:
-        - agent.os -equals Linux
+        - Agent.Name -equals 'vm-docker-asp-demo-001'
     steps:
     - task: AzureCLI@2
       displayName: Deploy image to Azure Container Apps
