@@ -11,6 +11,8 @@ resources:
 variables:
   tag: '$(Build.BuildId)'
   dockerRepository: 'mabahloul/dockerhubdemo'
+  containerAppName: 'aspnetdemodocker'
+  resourceGroup: 'nourilouka.com'
 
 stages:
 - stage: Build
@@ -70,3 +72,25 @@ stages:
         tags: |
           $(tag)
         containerRegistry: 'dockerconnection'
+
+- stage: Deploy
+  displayName: Deploy to Azure Container Apps
+  dependsOn: Push
+  jobs:
+  - job: Deploy
+    displayName: Deploy
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - task: AzureCLI@2
+      displayName: Deploy image to Azure Container Apps
+      inputs:
+        azureSubscription: 'azureconnection'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          az account show
+          az containerapp update \
+            --name $(containerAppName) \
+            --resource-group $(resourceGroup) \
+            --image $(dockerRepository):$(tag)
